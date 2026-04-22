@@ -5,7 +5,6 @@ from supabase import create_client, Client
 
 app = FastAPI()
 
-# Load environment variables from .env
 load_dotenv()
 
 url: str = os.environ.get("SUPABASE_URL")
