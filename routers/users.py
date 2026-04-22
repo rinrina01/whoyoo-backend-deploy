@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select
-from models import User
-from datetime import date, datetime
-import database
+from fastapi import APIRouter, HTTPException
+from database import supabase
 
 router = APIRouter(tags=["Users"])
 
+'''
 def populate_users():
     users = [
         User(
@@ -45,32 +43,25 @@ def populate_users():
                 print("Added " + str(user.name) + " to userbase.")
         session.commit()
         print("User table populated successfully.")
+'''
 
 # *--------- ROUTES ----------#
 
 @router.get("/users")
-def get_users(session: Session = Depends(database.get_session)):
-    statement = select(User)
-    users = session.exec(statement).all()
-
-    return {
-        "users": [
-            {
-                "id": user.id,
-                "name": user.name,
-            }
-            for user in users
-        ],
-    }
+def get_users():
+    response = supabase.table("users").select("*").execute()
+    return response.data
 
 @router.get("/users/{user_id}")
-def get_user(user_id: int, session: Session = Depends(database.get_session)):
-    statement = (
-        select(User)
-        .where(User.id == user_id)
+def get_user(user_id: str):
+    response = (
+        supabase.table("users")
+        .select("*")
+        .eq("id", user_id)
+        .execute()
     )
-    user = session.exec(statement).all()
 
-    if not user:
+    if not response.data:
         raise HTTPException(status_code=404, detail="No results.")
-    return user
+
+    return response.data
