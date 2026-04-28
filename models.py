@@ -1,6 +1,4 @@
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column
-from sqlalchemy.dialects.postgresql import JSON
 from typing import List, Optional, Dict
 from datetime import date, datetime
 
