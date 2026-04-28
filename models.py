@@ -14,7 +14,6 @@ class User(SQLModel, table=True):
     is_validated: bool = Field(default=False)
     joined_at: datetime = Field(default_factory=datetime.now)
 
-
 class Swipe(SQLModel, table=True):
     id: int = Field(primary_key=True)
     active_user_id: int = Field(default=None, foreign_key="user.id")

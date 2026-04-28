@@ -1,5 +1,8 @@
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.dialects.mssql import json
+
 from database import supabase
+from schemas.user_schema import UserUpdate
 
 router = APIRouter(tags=["Users"])
 
@@ -64,4 +67,20 @@ def get_user(user_id: str):
 
     if not response.data:
         raise HTTPException(status_code=404, detail="No results.")
+    return response.data
+
+@router.put("/users/modify/{user_id}")
+def modify_user(user_id: str, user: UserUpdate):
+    update_data = user.model_dump()
+
+    response = (
+        supabase.table("users")
+        .update(update_data)
+        .eq("id", user_id)
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="User not found")
+
     return response.data
