@@ -58,10 +58,10 @@ def get_user(user_id: str):
         supabase.table("users")
         .select("*")
         .eq("id", user_id)
+        .single()
         .execute()
     )
 
     if not response.data:
         raise HTTPException(status_code=404, detail="No results.")
-
     return response.data
