@@ -49,7 +49,7 @@ def populate_users():
 
 @router.get("/users")
 def get_users():
-    response = supabase.table("users").select("*").execute()
+    response = supabase.table("users").select("username").limit(1).single().execute()
     return response.data
 
 @router.get("/users/{user_id}")
