@@ -18,3 +18,14 @@ class TokenData(BaseModel):
     gender: str | None = None
     description: str | None = None
     is_validated: bool = False
+    
+class UserSignup(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    last_name: str
+    username: str
+    birthdate: str
+    description: str
+    sexuality: str | None = None
+    gender: str | None = None
