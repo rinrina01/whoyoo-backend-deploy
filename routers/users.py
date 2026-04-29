@@ -108,3 +108,17 @@ def login_user(request: UserLogin):
     #     raise HTTPException(status_code=404, detail="Incorrect password")
 
     return user
+@router.post("/users/signup")
+def signup_user(request: UserLogin):
+    response = (
+        supabase.table("users")
+        .insert({
+            "email": request.email,
+            "password": request.password,
+        })
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Could not create user")
+
+    return response.data
