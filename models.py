@@ -6,7 +6,6 @@ class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     email: str = Field(default='')
     password: str = Field()
-    name: str = Field(default='')
     date_of_birth: date = Field(default=None)
     sexuality: str | None = Field(default=None)
     gender: str = Field(default=None)

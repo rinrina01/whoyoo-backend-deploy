@@ -1,11 +1,21 @@
 import bcrypt
+import jwt
+import os
 from fastapi import APIRouter, HTTPException
+from fastapi.security import HTTPBearer
 from sqlalchemy.dialects.mssql import json
 
 from database import supabase
-from schemas.user_schema import UserUpdate, UserLogin
+from schemas.user_schema import UserUpdate, UserLogin, TokenData
 
 router = APIRouter(tags=["Users"])
+
+secret_key = os.environ.get("SECRET_KEY")
+algorithm = "HS256"
+bearer_scheme = HTTPBearer()
+
+def generate_token(user: TokenData) -> str:
+    return jwt.encode(user.model_dump(), secret_key, algorithm=algorithm)
 
 '''
 def populate_users():
@@ -107,7 +117,8 @@ def login_user(request: UserLogin):
     # if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
     #     raise HTTPException(status_code=404, detail="Incorrect password")
 
-    return user
+    token_data = TokenData(id=user.id, email=user.email, date_of_birth=user.date_of_birth, sexuality=user.sexuality, gender=user.gender, description=user.description)
+    return {"token": generate_token(token_data)}
 @router.post("/users/signup")
 def signup_user(request: UserLogin):
     response = (
