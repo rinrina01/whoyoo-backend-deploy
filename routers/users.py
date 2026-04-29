@@ -1,5 +1,9 @@
+import bcrypt
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.dialects.mssql import json
+
 from database import supabase
+from schemas.user_schema import UserUpdate, UserLogin
 
 router = APIRouter(tags=["Users"])
 
@@ -65,3 +69,42 @@ def get_user(user_id: str):
     if not response.data:
         raise HTTPException(status_code=404, detail="No results.")
     return response.data
+
+@router.put("/users/modify/{user_id}")
+def modify_user(user_id: str, user: UserUpdate):
+    update_data = user.model_dump()
+
+    response = (
+        supabase.table("users")
+        .update(update_data)
+        .eq("id", user_id)
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return response.data
+
+@router.post("/users/login")
+def login_user(request: UserLogin):
+    response = (
+        supabase.table("users")
+        .select("*")
+        .eq("email", request.email)
+        #Delete the row below when we have hashed password
+        .eq("password", request.password)
+        .single()
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user = response.data
+
+    # #Check if the password are the same
+    # if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
+    #     raise HTTPException(status_code=404, detail="Incorrect password")
+
+    return user
