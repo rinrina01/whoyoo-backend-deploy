@@ -139,4 +139,7 @@ def signup_user(request: UserSignup):
     if not response.data:
         raise HTTPException(status_code=404, detail="Could not create user")
 
-    return response.data[0]
+    new_user = response.data[0]
+    token_data = TokenData(id=new_user['id'],email=new_user['email'],date_of_birth=str(new_user['birthdate']),sexuality=new_user['sexuality'],gender=new_user['gender'],description=new_user['description'])
+
+    return {"user": new_user,"token": generate_token(token_data)}
