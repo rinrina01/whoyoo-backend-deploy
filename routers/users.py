@@ -102,8 +102,6 @@ def login_user(request: UserLogin):
         supabase.table("users")
         .select("*")
         .eq("email", request.email)
-        #Delete the row below when we have hashed password
-        .eq("password", request.password)
         .single()
         .execute()
     )
@@ -113,19 +111,21 @@ def login_user(request: UserLogin):
 
     user = response.data
     print(user)
-    # #Check if the password are the same
-    # if not bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8")):
-    #     raise HTTPException(status_code=404, detail="Incorrect password")
+     #Check if the password are the same
+    if not bcrypt.checkpw(request.password.encode("utf-8"), user.password.encode("utf-8")):
+        raise HTTPException(status_code=404, detail="Incorrect password")
 
     token_data = TokenData(id=user['id'], email=user['email'], date_of_birth=str(user['birthdate']), sexuality=user['sexuality'], gender=user['gender'], description=user['description'])
     return {"token": generate_token(token_data)}
+
 @router.post("/users/signup")
 def signup_user(request: UserSignup):
+    hashed_password = bcrypt.hashpw(request.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     response = (
         supabase.table("users")
         .insert({
             "email": request.email,
-            "password": request.password,
+            "password": hashed_password,
             "first_name": request.first_name,
             "last_name": request.last_name,
             "username": request.username,
