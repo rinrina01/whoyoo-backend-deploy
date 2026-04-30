@@ -13,7 +13,7 @@ class UserLogin(BaseModel):
 class TokenData(BaseModel):
     id: int = None
     email: str = None
-    date_of_birth: date = None
+    date_of_birth: str = None
     sexuality: str | None = None
     gender: str | None = None
     description: str | None = None
