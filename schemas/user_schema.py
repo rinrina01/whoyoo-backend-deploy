@@ -2,8 +2,9 @@ from datetime import date
 from pydantic import BaseModel
 
 class UserUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
     email:  str | None = None
-    sexuality:  str | None = None
     description:  str | None = None
 
 class UserLogin(BaseModel):
@@ -18,6 +19,8 @@ class TokenData(BaseModel):
     gender: str | None = None
     description: str | None = None
     is_validated: bool = False
+    last_name: str | None = None
+    first_name: str | None = None
     
 class UserSignup(BaseModel):
     email: str
