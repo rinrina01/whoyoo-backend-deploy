@@ -1,6 +1,7 @@
 import bcrypt
 import jwt
 import os
+
 from fastapi import APIRouter, HTTPException
 from fastapi.security import HTTPBearer
 from sqlalchemy.dialects.mssql import json
@@ -82,14 +83,23 @@ def get_user(user_id: str):
 
 @router.put("/users/modify/{user_id}")
 def modify_user(user_id: str, user: UserUpdate):
-    update_data = user.model_dump()
+    update_data = user.model_dump(exclude_none=True)
 
-    response = (
-        supabase.table("users")
-        .update(update_data)
-        .eq("id", user_id)
-        .execute()
-    )
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    try:                                         # ← ajout
+        response = (
+            supabase.table("users")
+            .update(update_data)
+            .eq("id", user_id)
+            .execute()
+        )
+    except Exception:                            # ← ajout
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection error"
+        )
 
     if not response.data:
         raise HTTPException(status_code=404, detail="User not found")
