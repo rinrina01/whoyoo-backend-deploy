@@ -121,11 +121,14 @@ def login_user(request: UserLogin):
 
     user = response.data
     print(user)
-     #Check if the password are the same
-    if not bcrypt.checkpw(request.password.encode("utf-8"), user['password'].encode("utf-8")):
-        raise HTTPException(status_code=404, detail="Incorrect password")
+    # Check if the password are the same
+    if not bcrypt.checkpw(request.password.encode("utf-8"), user.password.encode("utf-8")):
+        if not bcrypt.checkpw(request.password.encode("utf-8"), user['password'].encode("utf-8")):
+            raise HTTPException(status_code=404, detail="Incorrect password")
 
-    token_data = TokenData(id=user['id'], email=user['email'], date_of_birth=str(user['birthdate']), sexuality=user['sexuality'], gender=user['gender'], description=user['description'],first_name=user['first_name'],last_name=user['last_name'])
+    token_data = TokenData(id=user['id'], email=user['email'], date_of_birth=str(user['birthdate']),
+                           sexuality=user['sexuality'], gender=user['gender'], description=user['description'],
+                           first_name=user['first_name'], last_name=user['last_name'])
     return {"token": generate_token(token_data)}
 
 @router.post("/users/signup")
