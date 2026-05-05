@@ -1,4 +1,5 @@
 from datetime import date
+from typing import List
 from pydantic import BaseModel
 
 class UserUpdate(BaseModel):
@@ -6,6 +7,9 @@ class UserUpdate(BaseModel):
     last_name: str | None = None
     email:  str | None = None
     description:  str | None = None
+    background_image: str | None = None
+    photos: List[str] | None = None
+    vocals: List[str] | None = None
 
 class UserLogin(BaseModel):
     email: str | None = None
@@ -21,6 +25,7 @@ class TokenData(BaseModel):
     is_validated: bool = False
     last_name: str | None = None
     first_name: str | None = None
+    background_image: str | None = None
     
 class UserSignup(BaseModel):
     email: str
