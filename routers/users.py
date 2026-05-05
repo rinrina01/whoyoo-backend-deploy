@@ -120,10 +120,10 @@ def login_user(request: UserLogin):
         raise HTTPException(status_code=404, detail="User not found")
 
     user = response.data
-    print(user)
+
     # Check if the password are the same
-    if not bcrypt.checkpw(request.password.encode("utf-8"), user['password'].encode("utf-8")):
-        raise HTTPException(status_code=404, detail="Incorrect password")
+    if not bcrypt.checkpw(request.password.encode("utf-8"), user["password"].encode("utf-8")):
+        raise HTTPException(status_code=401, detail="Incorrect password")
 
     token_data = TokenData(
         id=user.get('id'),
@@ -137,7 +137,6 @@ def login_user(request: UserLogin):
         background_image=user.get('background_image'),
     )
     return {"token": generate_token(token_data)}
-
 @router.post("/users/signup")
 def signup_user(request: UserSignup):
     hashed_password = bcrypt.hashpw(request.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
