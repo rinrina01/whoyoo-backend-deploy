@@ -117,26 +117,45 @@ def login_user(request: UserLogin):
 
 @router.post("/users/signup")
 def signup_user(request: UserSignup):
-    hashed_password = get_password_hash(request.password) # bcrypt.hashpw(request.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    response = (
-        supabase.table("users")
-        .insert({
-            "email": request.email,
-            "password": hashed_password,
-            "first_name": request.first_name,
-            "last_name": request.last_name,
-            "username": request.username,
-            "birthdate": request.birthdate,
-            "description": request.description,
-            "sexuality": request.sexuality,
-            "gender": request.gender,
-        })
-        .execute()
-    )
+    hashed_password = get_password_hash(request.password)
+    email = request.email.lower().strip()
+    username = request.username.strip()
+    try:
+        response = (
+            supabase.table("users")
+            .insert({
+                "email": email,
+                "password": hashed_password,
+                "first_name": request.first_name,
+                "last_name": request.last_name,
+                "username": username,
+                "birthdate": request.birthdate,
+                "description": request.description,
+                "sexuality": request.sexuality,
+                "gender": request.gender,
+            })
+            .execute()
+        )
+    except Exception as e:
+        error_str = str(e)
+        if "unique_email" in error_str:
+            raise HTTPException(
+                status_code=409,
+                detail="Email already in use"
+            )
+        if "unique_username" in error_str:
+            raise HTTPException(
+                status_code=409,
+                detail="Username already taken"
+            )
+        print("Supabase error:", e)
+        raise HTTPException(status_code=500, detail="Database error")
     if not response.data:
-        raise HTTPException(status_code=404, detail="Could not create user")
+        raise HTTPException(status_code=400, detail="Could not create user")
 
-    new_user = response.data[0]
-    token_data = TokenData(id=new_user['id'],email=new_user['email'],date_of_birth=str(new_user['birthdate']),sexuality=new_user['sexuality'],gender=new_user['gender'],description=new_user['description'])
-
+    user = response.data[0]
+    token_data = TokenData(
+        id=user['id'],
+        email=user['email'],
+    )
     return {"token": generate_token(token_data)}

@@ -1,14 +1,16 @@
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+
+# TODO handle email format errors in frontend
 
 class UserUpdate(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
-    email:  str | None = None
+    email:  EmailStr | None = None
     description:  str | None = None
 
 class UserLogin(BaseModel):
-    email: str | None = None
+    email: EmailStr | None = None
     password: str | None = None
 
 class TokenData(BaseModel):
@@ -16,7 +18,7 @@ class TokenData(BaseModel):
     email: str = None
     
 class UserSignup(BaseModel):
-    email: str
+    email: EmailStr
     password: str
     first_name: str
     last_name: str
