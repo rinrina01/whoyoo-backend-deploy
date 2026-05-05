@@ -2,65 +2,63 @@ import bcrypt
 import jwt
 import os
 
-from fastapi import APIRouter, HTTPException
-from fastapi.security import HTTPBearer
-from sqlalchemy.dialects.mssql import json
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from database import supabase
-from schemas.user_schema import UserUpdate, UserLogin, TokenData, UserSignup
+from schemas.user_schema import *
+from datetime import datetime, timedelta
 
 router = APIRouter(tags=["Users"])
 
-secret_key = os.environ.get("SECRET_KEY")
-algorithm = "HS256"
-bearer_scheme = HTTPBearer()
+SECRET_KEY = os.environ.get("SECRET_KEY")
+ALGORITHM = "HS256"
+BEARER_SCHEME = HTTPBearer()
+
+# *--------- UTILITY FUNCTIONS ---------- #
+
+def get_password_hash(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 def generate_token(user: TokenData) -> str:
-    return jwt.encode(user.model_dump(), secret_key, algorithm=algorithm)
+    payload = {
+        "sub": str(user.id),
+        "email": user.email,
+        "exp": datetime.utcnow() + timedelta(hours=24),
+        "iat": datetime.utcnow(),
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-'''
-def populate_users():
-    users = [
-        User(
-            name="Ascot Brick",
-            password="hashed_password_1",
-            date_of_birth=date(1995, 6, 15),
-            sexuality="straight",
-            gender="male",
-            description="Loves architecture and vintage design."
-        ),
-        User(
-            name="Luna Hayes",
-            password="hashed_password_2",
-            date_of_birth=date(1998, 11, 3),
-            sexuality="bisexual",
-            gender="female",
-            description="Book lover and night owl."
-        ),
-        User(
-            name="Kai Moreno",
-            password="hashed_password_3",
-            date_of_birth=date(2000, 2, 21),
-            sexuality="pansexual",
-            gender="non-binary",
-            description="Coffee addict and digital artist."
-        ),
-    ]
+def get_user(authorization: HTTPAuthorizationCredentials = Depends(BEARER_SCHEME)):
+    try:
+        return jwt.decode(authorization.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-    with Session(database.engine) as session:
-        existing_count = session.exec(select(User)).first()
-        if existing_count:
-            print("User table already populated. Skipping insertion.")
-            return
-        else :
-            for user in users:
-                session.add(user)
-                print("Added " + str(user.name) + " to userbase.")
-        session.commit()
-        print("User table populated successfully.")
-'''
+def authenticate_user(email: str, password: str):
+    try:
+        response = (
+            supabase.table("users")
+            .select("id, email, password")
+            .eq("email", email)
+            .execute()
+        )
+    except Exception as e:
+        print("Supabase error:", e)
+        raise HTTPException(status_code=500, detail="Database error")
+    if not response.data:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    user = response.data[0]
+    if not verify_password(password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    return user
 
-# *--------- ROUTES ----------#
+# *--------- ROUTES ---------- #
 
 @router.get("/users")
 def get_users():
@@ -108,37 +106,18 @@ def modify_user(user_id: str, user: UserUpdate):
 
 @router.post("/users/login")
 def login_user(request: UserLogin):
-    response = (
-        supabase.table("users")
-        .select("*")
-        .eq("email", request.email)
-        .single()
-        .execute()
-    )
-
-    if not response.data:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user = response.data
-
-    # Check if the password are the same
-    if not bcrypt.checkpw(request.password.encode("utf-8"), user["password"].encode("utf-8")):
-        raise HTTPException(status_code=401, detail="Incorrect password")
-
+    user = authenticate_user(request.email, request.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
     token_data = TokenData(
         id=user['id'],
         email=user['email'],
-        date_of_birth=str(user['birthdate']),
-        sexuality=user['sexuality'],
-        gender=user['gender'],
-        description=user['description'],
-        first_name=user['first_name'],
-        last_name=user['last_name']
     )
     return {"token": generate_token(token_data)}
+
 @router.post("/users/signup")
 def signup_user(request: UserSignup):
-    hashed_password = bcrypt.hashpw(request.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    hashed_password = get_password_hash(request.password) # bcrypt.hashpw(request.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     response = (
         supabase.table("users")
         .insert({

@@ -14,13 +14,6 @@ class UserLogin(BaseModel):
 class TokenData(BaseModel):
     id: int = None
     email: str = None
-    date_of_birth: str = None
-    sexuality: str | None = None
-    gender: str | None = None
-    description: str | None = None
-    is_validated: bool = False
-    last_name: str | None = None
-    first_name: str | None = None
     
 class UserSignup(BaseModel):
     email: str
