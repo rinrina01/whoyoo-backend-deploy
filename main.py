@@ -1,6 +1,7 @@
 from fastapi import FastAPI,WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from routers.users import router
+from routers.interests import  router as interest_router
 
 app = FastAPI()
 app.add_middleware(
@@ -11,6 +12,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(interest_router)
 
 @app.get("/")
 def root():
