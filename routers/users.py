@@ -59,61 +59,7 @@ def authenticate_user(email: str, password: str):
     return user
 
 # *--------- ROUTES ---------- #
-
-@router.get("/users")
-def get_users():
-    response = supabase.table("users").select("*").execute()
-    return response.data
-
-@router.get("/users/{user_id}")
-def get_user(user_id: str):
-    response = (
-        supabase.table("users")
-        .select("*")
-        .eq("id", user_id)
-        .single()
-        .execute()
-    )
-
-    if not response.data:
-        raise HTTPException(status_code=404, detail="No results.")
-    return response.data
-
-@router.put("/users/modify/{user_id}")
-def modify_user(user_id: str, user: UserUpdate):
-    update_data = user.model_dump(exclude_none=True)
-
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No fields to update")
-
-    try:                                         # ← ajout
-        response = (
-            supabase.table("users")
-            .update(update_data)
-            .eq("id", user_id)
-            .execute()
-        )
-    except Exception:                            # ← ajout
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection error"
-        )
-
-    if not response.data:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return response.data
-
-@router.post("/users/login")
-def login_user(request: UserLogin):
-    user = authenticate_user(request.email, request.password)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    token_data = TokenData(
-        id=user['id'],
-        email=user['email'],
-    )
-    return {"token": generate_token(token_data)}
+# --------- AUTH --------- #
 
 @router.post("/users/signup")
 def signup_user(request: UserSignup):
@@ -159,3 +105,113 @@ def signup_user(request: UserSignup):
         email=user['email'],
     )
     return {"token": generate_token(token_data)}
+
+@router.post("/users/login")
+def login_user(request: UserLogin):
+    user = authenticate_user(request.email, request.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token_data = TokenData(
+        id=user['id'],
+        email=user['email'],
+    )
+    return {"token": generate_token(token_data)}
+
+@router.put("/users/modify/{user_id}")
+def modify_user(user_id: str, user: UserUpdate):
+    update_data = user.model_dump(exclude_none=True)
+
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    try:                                         # ← ajout
+        response = (
+            supabase.table("users")
+            .update(update_data)
+            .eq("id", user_id)
+            .execute()
+        )
+    except Exception:                            # ← ajout
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection error"
+        )
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return response.data
+
+
+# --------- OTHER --------- #
+
+@router.get("/users/me")
+def get_me(
+    authorization: HTTPAuthorizationCredentials = Depends(BEARER_SCHEME)
+):
+    try:
+        payload = jwt.decode(
+            authorization.credentials,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        try:
+            response = (
+                supabase.table("users")
+                .select(
+                    """
+                        id,
+                        email,
+                        first_name,
+                        last_name,
+                        username,
+                        birthdate,
+                        description,
+                        created_at,
+                        gender,
+                        sexuality,
+                        is_verified,
+                        background_image,
+                        interests,
+                        playlist,
+                        pictures,
+                        vocals
+                    """
+                )
+                .eq("id", payload["sub"])
+                .execute()
+            )
+        except Exception as e:
+            print("Supabase error:", e)
+            raise HTTPException(status_code=500, detail="Database error")
+
+        user = response.data[0]
+        if not user:
+            raise HTTPException(status_code=401, detail="No user was found")
+        # return payload
+        return user
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+@router.get("/users")
+def get_users():
+    response = supabase.table("users").select("*").execute()
+    return response.data
+
+@router.get("/users/{user_id}")
+def get_user(user_id: str):
+    response = (
+        supabase.table("users")
+        .select("*")
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(status_code=404, detail="No results.")
+    return response.data
