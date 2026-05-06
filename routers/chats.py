@@ -23,11 +23,13 @@ def get_chat(chat_id: str):
         supabase.table("messages")
         .select("*")
         .eq("chat_id", chat_id)
+        .order("created_at", desc=False)  # ✅ important
         .execute()
     )
 
     if not response.data:
-        raise HTTPException(status_code=404, detail="No results.")
+        return []  # don't throw 404 for empty chat
+
     return response.data
 
 def create_message(chat_id, sender_id, receiver_id, content):
