@@ -1,8 +1,10 @@
+import uuid
+
 import bcrypt
 import jwt
 import os
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from database import supabase
@@ -215,3 +217,37 @@ def get_user(user_id: str):
     if not response.data:
         raise HTTPException(status_code=404, detail="No results.")
     return response.data
+
+@router.post("/users/me/upload-avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    authorization: str = Header(...),  # ← Header direct
+):
+    # Extraire le token manuellement
+    token = authorization.replace("Bearer ", "")
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    user_id = payload["sub"]
+    ext = file.filename.split(".")[-1]
+    file_path = f"{user_id}/{uuid.uuid4()}.{ext}"
+
+    content = await file.read()
+
+    supabase.storage.from_("user_uploads").upload(
+        path=file_path,
+        file=content,
+        file_options={"content-type": file.content_type},
+    )
+
+    public_url = supabase.storage.from_("user_uploads").get_public_url(file_path)
+
+    supabase.table("users").update(
+        {"background_image": public_url}
+    ).eq("id", user_id).execute()
+
+    return {"background_image": public_url}
