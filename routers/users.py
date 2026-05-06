@@ -242,8 +242,17 @@ async def upload_avatar(
         path=file_path,
         file=content,
         file_options={"content-type": file.content_type},
+    token_data = TokenData(
+        id=user.get('id'),
+        email=user['email'],
+        date_of_birth=str(user['birthdate']),
+        sexuality=user['sexuality'],
+        gender=user['gender'],
+        description=user['description'],
+        first_name=user['first_name'],
+        last_name=user['last_name'],
+        background_image=user.get('background_image'),
     )
-
     public_url = supabase.storage.from_("user_uploads").get_public_url(file_path)
 
     supabase.table("users").update(
@@ -251,3 +260,90 @@ async def upload_avatar(
     ).eq("id", user_id).execute()
 
     return {"background_image": public_url}
+
+@router.post("/users/{user_id}/upload-picture")
+async def upload_picture(
+        user_id: str,
+        file: UploadFile = File(...)
+):
+
+    try:
+        file_bytes = await file.read()
+
+
+        file_extension = file.filename.split(".")[-1]
+        unique_filename = f"{user_id}/{uuid.uuid4()}.{file_extension}"
+
+
+        supabase.storage.from_("user_uploads").upload(
+            path=unique_filename,
+            file=file_bytes,
+            file_options={"content-type": file.content_type}
+        )
+
+        public_url = supabase.storage.from_("user_uploads").get_public_url(unique_filename)
+
+
+        user_response = supabase.table("users").select("pictures").eq("id", user_id).single().execute()
+        current_pictures = user_response.data.get("pictures", []) if user_response.data else []
+
+        if current_pictures is None:
+            current_pictures = []
+
+        current_pictures.append(public_url)
+
+
+        supabase.table("users").update({"pictures": current_pictures}).eq("id", user_id).execute()
+
+        return {
+            "message": "Upload successful",
+            "url": public_url
+        }
+
+    except Exception as e:
+        print(f"Upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/users/{user_id}/upload-voice")
+async def upload_voice(
+        user_id: str,
+        file: UploadFile = File(...)
+):
+
+    try:
+        file_bytes = await file.read()
+
+
+        file_extension = file.filename.split(".")[-1]
+        unique_filename = f"{user_id}/{uuid.uuid4()}.{file_extension}"
+
+
+        supabase.storage.from_("user_uploads").upload(
+            path=unique_filename,
+            file=file_bytes,
+            file_options={"content-type": file.content_type}
+        )
+
+
+        public_url = supabase.storage.from_("user_uploads").get_public_url(unique_filename)
+
+
+        user_response = supabase.table("users").select("vocals").eq("id", user_id).single().execute()
+        current_vocals = user_response.data.get("vocals", []) if user_response.data else []
+
+        if current_vocals is None:
+            current_vocals = []
+
+        current_vocals.append(public_url)
+
+        supabase.table("users").update({"vocals": current_vocals}).eq("id", user_id).execute()
+
+        return {
+            "message": "Voice upload successful",
+            "url": public_url
+        }
+
+    except Exception as e:
+        print(f"Voice upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
