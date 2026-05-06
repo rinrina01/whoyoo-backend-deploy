@@ -42,6 +42,7 @@ def create_message(chat_id, sender_id, receiver_id, content):
         .execute()
     )
 
+"""
 @router.post("/chats/send-message")
 def send_message(request: MessageCreation):
     response = create_message(
@@ -55,6 +56,7 @@ def send_message(request: MessageCreation):
         raise HTTPException(status_code=404, detail="Message creation failed")
 
     return response.data
+"""
 
 chat_connections = {}  # chat_id -> list of websockets
 @router.websocket("/ws/chat/{chat_id}")
@@ -76,8 +78,18 @@ async def chat_ws(websocket: WebSocket, chat_id: int):
 
             create_message(chat_id, sender_id, receiver_id, content)
 
-            for client in chat_connections[chat_id]: # broadcast
-                await client.send_json(data)
+            disconnected_clients = []
+
+            for client in chat_connections[chat_id]:
+                try:
+                    await client.send_json(data)
+                except:
+                    disconnected_clients.append(client)
+
+            # remove dead sockets
+            for client in disconnected_clients:
+                chat_connections[chat_id].remove(client)
 
     except WebSocketDisconnect:
-        chat_connections[chat_id].remove(websocket)
+        if websocket in chat_connections[chat_id]:
+            chat_connections[chat_id].remove(websocket)

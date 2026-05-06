@@ -27,7 +27,7 @@ def generate_token(user: TokenData) -> str:
     payload = {
         "sub": str(user.id),
         "email": user.email,
-        "exp": datetime.utcnow() + timedelta(hours=24),
+        "exp": datetime.utcnow() + timedelta(hours=24), # TODO change
         "iat": datetime.utcnow(),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
