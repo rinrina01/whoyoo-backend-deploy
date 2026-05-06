@@ -242,16 +242,6 @@ async def upload_avatar(
         path=file_path,
         file=content,
         file_options={"content-type": file.content_type},
-    token_data = TokenData(
-        id=user.get('id'),
-        email=user['email'],
-        date_of_birth=str(user['birthdate']),
-        sexuality=user['sexuality'],
-        gender=user['gender'],
-        description=user['description'],
-        first_name=user['first_name'],
-        last_name=user['last_name'],
-        background_image=user.get('background_image'),
     )
     public_url = supabase.storage.from_("user_uploads").get_public_url(file_path)
 
