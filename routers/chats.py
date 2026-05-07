@@ -12,10 +12,104 @@ from schemas.chat_schema import MessageCreation
 
 router = APIRouter(tags=["Chats"])
 
-@router.get("/chats")
-def get_chats():
-    response = supabase.table("chats").select("*").execute()
-    return response.data
+@router.get("/chats/{user_id}")
+def get_chats(user_id: str):
+
+    try:
+        # Fetch all chats where user is participant
+        chats_response = (
+            supabase.table("chats")
+            .select("*")
+            .or_(f"user_1.eq.{user_id},user_2.eq.{user_id}")
+            .execute()
+        )
+
+        chats = chats_response.data
+
+        if not chats:
+            return []
+
+        formatted_chats = []
+
+        for chat in chats:
+
+            # Determine the OTHER participant
+            other_user_id = (
+                chat["user_2"]
+                if str(chat["user_1"]) == str(user_id)
+                else chat["user_1"]
+            )
+
+            # Fetch other user's info
+            user_response = (
+                supabase.table("users")
+                .select("id, username, background_image")
+                .eq("id", other_user_id)
+                .single()
+                .execute()
+            )
+
+            other_user = user_response.data
+
+            # Fetch latest message
+            message_response = (
+                supabase.table("messages")
+                .select("content, created_at, sender_id")
+                .eq("chat_id", chat["id"])
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+
+            last_message = (
+                message_response.data[0]
+                if message_response.data
+                else None
+            )
+
+            formatted_chats.append({
+                "chat_id": chat["id"],
+
+                "user": {
+                    "id": other_user["id"],
+                    "username": other_user["username"],
+                    "background_image": other_user["background_image"],
+                },
+
+                "last_message": (
+                    last_message["content"]
+                    if last_message
+                    else None
+                ),
+
+                "last_message_date": (
+                    last_message["created_at"]
+                    if last_message
+                    else None
+                ),
+
+                "last_message_sender_id": (
+                    last_message["sender_id"]
+                    if last_message
+                    else None
+                )
+            })
+
+        # Sort chats by latest message date
+        formatted_chats.sort(
+            key=lambda x: x["last_message_date"] or "",
+            reverse=True
+        )
+
+        return formatted_chats
+
+    except Exception as e:
+        print("CHAT FETCH ERROR:", e)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Could not fetch chats"
+        )
 
 @router.get("/chats/{chat_id}")
 def get_chat(chat_id: str):
