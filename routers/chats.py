@@ -4,7 +4,6 @@ import os
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer
-from sqlalchemy.dialects.mssql import json
 
 from database import supabase
 from schemas.user_schema import TokenData
@@ -12,11 +11,10 @@ from schemas.chat_schema import MessageCreation
 
 router = APIRouter(tags=["Chats"])
 
-@router.get("/chats/{user_id}")
-def get_chats(user_id: str):
 
+@router.get("/chats/user/{user_id}")  # ✅ renamed to avoid collision
+def get_chats(user_id: str):
     try:
-        # Fetch all chats where user is participant
         chats_response = (
             supabase.table("chats")
             .select("*")
@@ -32,15 +30,12 @@ def get_chats(user_id: str):
         formatted_chats = []
 
         for chat in chats:
-
-            # Determine the OTHER participant
             other_user_id = (
                 chat["user_2"]
                 if str(chat["user_1"]) == str(user_id)
                 else chat["user_1"]
             )
 
-            # Fetch other user's info
             user_response = (
                 supabase.table("users")
                 .select("id, username, background_image")
@@ -51,7 +46,6 @@ def get_chats(user_id: str):
 
             other_user = user_response.data
 
-            # Fetch latest message
             message_response = (
                 supabase.table("messages")
                 .select("content, created_at, sender_id")
@@ -69,62 +63,49 @@ def get_chats(user_id: str):
 
             formatted_chats.append({
                 "chat_id": chat["id"],
-
                 "user": {
                     "id": other_user["id"],
                     "username": other_user["username"],
                     "background_image": other_user["background_image"],
                 },
-
                 "last_message": (
-                    last_message["content"]
-                    if last_message
-                    else None
+                    last_message["content"] if last_message else None
                 ),
-
                 "last_message_date": (
-                    last_message["created_at"]
-                    if last_message
-                    else None
+                    last_message["created_at"] if last_message else None
                 ),
-
                 "last_message_sender_id": (
-                    last_message["sender_id"]
-                    if last_message
-                    else None
-                )
+                    last_message["sender_id"] if last_message else None
+                ),
             })
 
-        # Sort chats by latest message date
         formatted_chats.sort(
             key=lambda x: x["last_message_date"] or "",
-            reverse=True
+            reverse=True,
         )
 
         return formatted_chats
 
     except Exception as e:
         print("CHAT FETCH ERROR:", e)
+        raise HTTPException(status_code=500, detail="Could not fetch chats")
 
-        raise HTTPException(
-            status_code=500,
-            detail="Could not fetch chats"
-        )
 
-@router.get("/chats/{chat_id}")
+@router.get("/chats/{chat_id}")  # ✅ now unambiguous
 def get_chat(chat_id: str):
     response = (
         supabase.table("messages")
         .select("*")
         .eq("chat_id", chat_id)
-        .order("created_at", desc=False)  # ✅ important
+        .order("created_at", desc=False)
         .execute()
     )
 
     if not response.data:
-        return []  # don't throw 404 for empty chat
+        return []
 
     return response.data
+
 
 def create_message(chat_id, sender_id, receiver_id, content):
     return (
@@ -138,23 +119,10 @@ def create_message(chat_id, sender_id, receiver_id, content):
         .execute()
     )
 
-"""
-@router.post("/chats/send-message")
-def send_message(request: MessageCreation):
-    response = create_message(
-        request.chat_id,
-        request.sender_id,
-        request.receiver_id,
-        request.content
-    )
 
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Message creation failed")
+chat_connections = {}
 
-    return response.data
-"""
 
-chat_connections = {}  # chat_id -> list of websockets
 @router.websocket("/ws/chat/{chat_id}")
 async def chat_ws(websocket: WebSocket, chat_id: int):
     await websocket.accept()
@@ -179,10 +147,9 @@ async def chat_ws(websocket: WebSocket, chat_id: int):
             for client in chat_connections[chat_id]:
                 try:
                     await client.send_json(data)
-                except:
+                except Exception:
                     disconnected_clients.append(client)
 
-            # remove dead sockets
             for client in disconnected_clients:
                 chat_connections[chat_id].remove(client)
 
