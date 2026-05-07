@@ -24,7 +24,34 @@ def _get_user_id(authorization: str) -> str:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+# ─── GET /users/{user_id}/pinned-items ───────────────────────────────────────
+
+@router.get("/users/{user_id}/pinned-items")
+def get_pinned_items(user_id: str):
+    """
+    Retourne les items pinnés d'un utilisateur (picture + vocal).
+    Public — pas d'auth requise, utilisé pour les cartes de découverte.
+    """
+    response = (
+        supabase.table("profile_items")
+        .select("*")
+        .eq("user_id", user_id)
+        .eq("is_pinned", True)
+        .execute()
+    )
+
+    items = response.data or []
+    pinned_picture = next((i for i in items if i["type"] == "picture"), None)
+    pinned_vocal   = next((i for i in items if i["type"] == "vocal"),   None)
+
+    return {
+        "pinned_picture": pinned_picture,
+        "pinned_vocal":   pinned_vocal,
+    }
+
+
 # ─── GET /users/me/items ──────────────────────────────────────────────────────
+
 
 @router.get("/users/me/items")
 def get_my_items(authorization: str = Header(...)):
